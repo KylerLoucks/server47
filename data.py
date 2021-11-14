@@ -1,4 +1,3 @@
-CONSUMER_KEY = 'BSYA2DXNYUFFO786GPEOD9WKZZOIDXPS'
+CONSUMER_KEY = 'BSYA2DXNYUFFO786GPEOD9WKZZOIDXPS' # key that was created for the "My Apps" on https://developer.tdameritrade.com/apis
 REDIRECT_URI = 'https://localhost'
 JSON_PATH = 'D:/Python Scripts/Server47/td_state.json'
-TD_ACCOUNT = '495877182'

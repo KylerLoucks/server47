@@ -1,9 +1,10 @@
-from data import CONSUMER_KEY, REDIRECT_URI, JSON_PATH, TD_ACCOUNT # Import from data.py
+from data import CONSUMER_KEY, REDIRECT_URI, JSON_PATH # Import from data.py
+from secretunstageddata import TD_ACCOUNT
 from td.client import TDClient
 import openpyxl # excel library
 from datetime import datetime
 import time
-import traceback
+import traceback # stack trace
 
 
 #pip install td-ameritrade-python-api
