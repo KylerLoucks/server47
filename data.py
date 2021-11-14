@@ -1,0 +1,4 @@
+CONSUMER_KEY = 'BSYA2DXNYUFFO786GPEOD9WKZZOIDXPS'
+REDIRECT_URI = 'https://localhost'
+JSON_PATH = 'D:/Python Scripts/Server47/td_state.json'
+TD_ACCOUNT = '495877182'
