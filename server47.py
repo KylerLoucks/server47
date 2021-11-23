@@ -1,10 +1,12 @@
-from data import CONSUMER_KEY, REDIRECT_URI, JSON_PATH # Import from data.py
-from secretunstageddata import TD_ACCOUNT
+import time, calendar
+from datetime import datetime
+import traceback # stack trace
 from td.client import TDClient
 import openpyxl # excel library
-from datetime import datetime
-import time
-import traceback # stack trace
+from data import CONSUMER_KEY, REDIRECT_URI, JSON_PATH # Import from data.py
+from secretunstageddata import TD_ACCOUNT
+
+
 
 
 #pip install td-ameritrade-python-api
@@ -14,87 +16,165 @@ import traceback # stack trace
 #           TD AMERITRADE
 #======================================
 td_client = TDClient(client_id= CONSUMER_KEY, redirect_uri= REDIRECT_URI, credentials_path= JSON_PATH)
-td_client.login()
-
-
+td_client.login() # Authenticate. This needs to be done every 90 days.
 
 
 transactions = td_client.get_transactions(account=TD_ACCOUNT, transaction_type='BUY_ONLY') # get the transactions that are BUY ORDERS ONLY
 
 accountData = td_client.get_accounts(account=TD_ACCOUNT, fields=['orders']) # get the account data
+positionsData = td_client.get_accounts(account=TD_ACCOUNT, fields=["positions"])
 # account value of TD Ameritrade account
 accountValue = accountData['securitiesAccount']['initialBalances']['accountValue'] # array list with dics within dics
 
 
+'''
+Get a list of all the SYMBOLs of the positions that are held
+'''
+def getOwnedPositionSymbols():
+    ownedPositions = []
+    i = 0
+    while i < len(positionsData["securitiesAccount"]["positions"]):
+        if (str(positionsData["securitiesAccount"]["positions"][i]["instrument"]["symbol"]) != "MMDA1" ):
+            ownedPositions.append(positionsData["securitiesAccount"]["positions"][i]['instrument']['symbol'])
+            #print(str(positionsData["securitiesAccount"]["positions"][i]['instrument']['symbol']))
+        i+=1
+    return ownedPositions
 
+
+
+'''
+Convert a date string in the format "MM/DD/YYYY" to UTC Epoch
+Variables: date - the date string
+Epoch time in miliseconds for the final trading day of 2020 (GMT Thursday, December 31, 2020 6:00:00 AM)
+'''
+def convertUTCToEpochMiliseconds(date):
+    time_var = " 06:00:00"
+    dt_obj = datetime.strptime((date + time_var), "%m/%d/%Y %H:%M:%S") # parse string to datetime object
+    epoch = calendar.timegm(dt_obj.utctimetuple())
+    return epoch * 1000 # multiply result by 1000 to account for miliseconds
+
+def getPriceHistory(symbol, startdate, enddate):
+    startdate = str(convertUTCToEpochMiliseconds(startdate))
+    enddate = str(convertUTCToEpochMiliseconds(enddate))
+    price_history = td_client.get_price_history(symbol=symbol, start_date=startdate, end_date=enddate)
+
+    print(price_history)
+
+
+
+def getCurrentPositionMarketValue(symbol):
+    i = 0
+    while i < len(positionsData['securitiesAccount']['positions']):
+        if symbol == positionsData["securitiesAccount"]['positions'][i]['instrument']['symbol']: # if the string entered matches the position index symbol string
+            return positionsData["securitiesAccount"]['positions'][i]['marketValue'] # return the current market value
+        i+=1
 
 #======================================
 #           EXCEL WORK BOOK
 #======================================
 # | FIELDS | #
-workBookPath = "D:\Python Scripts\Server47\excelworkbooktest\TD Ameritrade stonks.xlsx"
+workBookPath = "D:/Python Scripts/Server47/excelworkbooktest/TD Ameritrade stonks.xlsx"
 excelWorkBook = openpyxl.load_workbook(workBookPath)
-transactionsWS = excelWorkBook['Transactions']# Transactions worksheet in TD Ameritrade Stonks.xlxs
-contributedWS = excelWorkBook['$Contributed$']# $Contributed$ worksheet in TD Ameritrade Stonks.xlxs
-ws_portfolio = excelWorkBook['2021 Portfolio']#  Portfolio worksheet in TD Ameritrade Stonks.xlxs
+
+ws_transactions = excelWorkBook['Transactions']     # Transactions worksheet in TD Ameritrade Stonks.xlxs
+ws_contributed = excelWorkBook['$Contributed$']     # $Contributed$ worksheet in TD Ameritrade Stonks.xlxs
+ws_portfolio = excelWorkBook['2021 Portfolio']      #  Portfolio worksheet in TD Ameritrade Stonks.xlxs
+ws_position_data = excelWorkBook['Position Data']   #  Position Data worksheet in TD Ameritrade Stonks.xlxs
 
 
+'''
+Update the 'Position Data' excel worksheet with all owned symbol data (bid price, last price, etc...)
+'''
+def updateStockData():
+    quotes = td_client.get_quotes(getOwnedPositionSymbols())
+    values = list(quotes.values()) ## list of all dictionary key values, bidPrice, etc.
+    index = 1
+    for stonk in values:
+        index+=1      
+        #print(str(stonk['symbol']) + " Bid Price changed from: " + str(ws_position_data.cell(row=index, column =2).value) + " to: " + str(stonk['bidPrice']))
+        print(str(stonk['symbol']) + " Last Price changed from: " + str(ws_position_data.cell(row=index, column =4).value) + " to: " + str(stonk['lastPrice']))  
+        ws_position_data.cell(row=index, column=1, value=str(stonk['symbol'])).number_format = '$#,##0.00' # update symbol cells
+        ws_position_data.cell(row=index, column=2, value=float(stonk['bidPrice'])).number_format = '$#,##0.00' # update bidPrice cells
+        ws_position_data.cell(row=index, column=3, value=float(stonk['askPrice'])).number_format = '$#,##0.00' # update askPrice cells
+        ws_position_data.cell(row=index, column=4, value=float(stonk['lastPrice'])).number_format = '$#,##0.00' # update lastPrice cells
+        ws_position_data.cell(row=index, column=5, value=float(stonk['openPrice'])).number_format = '$#,##0.00' # update openPrice cells
+        ws_position_data.cell(row=index, column=6, value=float(stonk['highPrice'])).number_format = '$#,##0.00' # update highPrice cells
+        ws_position_data.cell(row=index, column=7, value=float(stonk['lowPrice'])).number_format = '$#,##0.00' # update lowPrice cells
+        ws_position_data.cell(row=index, column=8, value=float(stonk['closePrice'])).number_format = '$#,##0.00' # update closePrice cells
+
+        excelWorkBook.save(workBookPath)
+
+
+'''
+Update total account value 
+'''
 def updateAccountValue():
     try:
+        print("Updated " + str(ws_portfolio) + " 'Account Value' from: " + str(ws_portfolio.cell(row=2, column=8).value) + " to: $" + str(accountValue))
+        print("Updated " + str(ws_contributed) + " 'Account Value' from: " + str(ws_contributed.cell(row=2, column=4).value) + " to: $" + str(accountValue))
         ws_portfolio.cell(row=2, column=8, value=accountValue) # update total account value cell
-        contributedWS.cell(row=2, column=4, value=accountValue) # update total account value cell
+        ws_contributed.cell(row=2, column=4, value=accountValue) # update total account value cell
         # save the excel file
         excelWorkBook.save(workBookPath)
-        print("Updated " + str(ws_portfolio) + " " + str(ws_portfolio.cell(row=2, column=8).value) + " to: " + "$" + str(accountValue))
+
     except:
         traceback.print_exc() # stacktrace
         input("There was an error updating the total account value. Make sure the spreadsheet isn't already opened. Press Enter to continue...")
-        
 
 
-def convertAnnoyingDateFormToSomethingUnderstandableByAHumanBeing(date):
-    oldDateForm = datetime.strptime(str(date), '%Y-%m-%dT%H:%M:%S%z')
-    parsedDate = datetime.strftime(oldDateForm, '%m/%d/%Y')
+
+
+'''
+Convert the date format of exammple: 2021-08-13T16:20:10+0000 -> 08/13/2021
+'''
+def convertAnnoyingDateFormat(date):
+    oldDateFormat = datetime.strptime(str(date), '%Y-%m-%dT%H:%M:%S%z')
+    parsedDate = datetime.strftime(oldDateFormat, '%m/%d/%Y')
     return parsedDate
 
 
+'''
+Update the 'Transactions' sheet with the transaction data for every transaction in the 'transactions' dictionary
+'''
 def updateTransactions():
     try:
-        print("Updated the " + str(transactionsWS) + " with the following: ")
+        print("Updated the " + str(ws_transactions) + " with the following transaction data: ")
         i = 0
-        while i < len(transactions): # while the size of the transactions list is < i
+        while i < len(transactions): # while i < the size of the transactions list
             id = int(transactions[i]['transactionId']) # grab the ID from the list
             symbol = str(transactions[i]['transactionItem']['instrument']['symbol'])
             date = str((transactions[i]['transactionDate']))
-            date = convertAnnoyingDateFormToSomethingUnderstandableByAHumanBeing(date) # convert the annoying tedious ameritradious date form to a readable form.
+            date = convertAnnoyingDateFormat(date) # convert the annoying tedious ameritradious date format to a readable format.
             amount_paid = -1 * float(transactions[i]['netAmount']) # Convert the negative transaction to a positive float of a string.
             share_price = float(transactions[i]['transactionItem']['price'])
             shares = int(transactions[i]['transactionItem']['amount'])
 
             index = i+2
-            transactionsWS.cell(row=index, column=1, value=id) # update ID column cells
-            transactionsWS.cell(row=index, column=2, value=symbol) # update symbol column cells
-            transactionsWS.cell(row=index, column=3, value=date) # update date cells
-            transactionsWS.cell(row=index, column=4, value=share_price).number_format = '$#,##0.00' # update share_price cells
-            transactionsWS.cell(row=index, column=5, value=shares) # update shares cells
-            transactionsWS.cell(row=index, column=6, value=amount_paid).number_format = '$#,##0.00' # update amount column cells
+            ws_transactions.cell(row=index, column=1, value=id) # update ID cells
+            ws_transactions.cell(row=index, column=2, value=symbol) # update symbol cells
+            ws_transactions.cell(row=index, column=3, value=date) # update date cells
+            ws_transactions.cell(row=index, column=4, value=share_price).number_format = '$#,##0.00' # update share_price cells
+            ws_transactions.cell(row=index, column=5, value=shares) # update shares cells
+            ws_transactions.cell(row=index, column=6, value=amount_paid).number_format = '$#,##0.00' # update amount cells
             
-            print("ID: " + str(id) + " SYMBOL: " + str(symbol) + " DATE: " + str(date) + " SHARES: " + str(shares) + " AMOUNT PAID: " + str(amount_paid) + " SHARE PRICE: " + str(share_price))
+            print("ID: " + str(id) + " SYMBOL: " + str(symbol) + " DATE: " + str(date) + " SHARE PRICE: " + str(share_price) + " SHARES: " + str(shares) + " AMOUNT PAID: " + str(amount_paid))
             i+=1
         # save the excel file
         excelWorkBook.save(workBookPath)
     except:
         traceback.print_exc() # stacktrace
         input("There was an error updating the transactions. Make sure the spreadsheet isn't already opened. Press Enter to continue...")
-        
+
+
 
 
 def sleep():
-    updateTransactions()
-    updateAccountValue()
+    #updateTransactions()
+    #updateAccountValue()
+    updateStockData()
     print("Updated Transactions! \n")
     time.sleep(10)
-    sleep()
+    sleep() #recursion
 
 print("Do you want to run continuously? (Press 1), otherwise, press (Enter)...")
 nonStopRun = input().lower()
@@ -103,5 +183,10 @@ if nonStopRun == "1":
 if nonStopRun != "1":
     updateTransactions()
     updateAccountValue()
+    updateStockData()
+
+    #print(getOwnedPositionSymbols())
+
     input("Updated! Press Enter to close...")
+
 
