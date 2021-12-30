@@ -4,7 +4,7 @@ import traceback # stack trace
 from td.client import TDClient
 import openpyxl # excel library
 from data import CONSUMER_KEY, REDIRECT_URI, JSON_PATH # Import from data.py
-from secretunstageddata import TD_ACCOUNT
+from secretunstageddata import TD_ACCOUNT # TODO SET ENVIRONMENT VARIABLES
 
 
 
@@ -34,7 +34,7 @@ def getOwnedPositionSymbols():
     ownedPositions = []
     i = 0
     while i < len(positionsData["securitiesAccount"]["positions"]):
-        if (str(positionsData["securitiesAccount"]["positions"][i]["instrument"]["symbol"]) != "MMDA1" ):
+        if (str(positionsData["securitiesAccount"]["positions"][i]["instrument"]["symbol"]) != "MMDA1" ): # exclude MMDA1 (money stored on account, but not invested)
             ownedPositions.append(positionsData["securitiesAccount"]["positions"][i]['instrument']['symbol'])
             #print(str(positionsData["securitiesAccount"]["positions"][i]['instrument']['symbol']))
         i+=1
@@ -73,7 +73,7 @@ def getCurrentPositionMarketValue(symbol):
 #           EXCEL WORK BOOK
 #======================================
 # | FIELDS | #
-workBookPath = "D:/Python Scripts/Server47/excelworkbooktest/TD Ameritrade stonks.xlsx"
+workBookPath = "./excelworkbooktest/TD Ameritrade stonks.xlsx"
 excelWorkBook = openpyxl.load_workbook(workBookPath)
 
 ws_transactions = excelWorkBook['Transactions']     # Transactions worksheet in TD Ameritrade Stonks.xlxs
@@ -87,12 +87,12 @@ Update the 'Position Data' excel worksheet with all owned symbol data (bid price
 '''
 def updateStockData():
     quotes = td_client.get_quotes(getOwnedPositionSymbols())
-    values = list(quotes.values()) ## list of all dictionary key values, bidPrice, etc.
+    values = list(quotes.values()) ## list of all dictionary key values (bidPrice, etc.)
     index = 1
     for stonk in values:
         index+=1      
         #print(str(stonk['symbol']) + " Bid Price changed from: " + str(ws_position_data.cell(row=index, column =2).value) + " to: " + str(stonk['bidPrice']))
-        print(str(stonk['symbol']) + " Last Price changed from: " + str(ws_position_data.cell(row=index, column =4).value) + " to: " + str(stonk['lastPrice']))  
+        print(str(stonk['symbol']) + " Last Price changed from: " + str(ws_position_data.cell(row=index, column =4).value) + " to: " + str(stonk['lastPrice']))
         ws_position_data.cell(row=index, column=1, value=str(stonk['symbol'])).number_format = '$#,##0.00' # update symbol cells
         ws_position_data.cell(row=index, column=2, value=float(stonk['bidPrice'])).number_format = '$#,##0.00' # update bidPrice cells
         ws_position_data.cell(row=index, column=3, value=float(stonk['askPrice'])).number_format = '$#,##0.00' # update askPrice cells
@@ -109,15 +109,24 @@ def updateStockData():
 Update total account value 
 '''
 def updateAccountValue():
+    currentYear = datetime.now()
+    day = currentYear.date()
+    year = int(day.strftime("%Y"))
     try:
         print("Updated " + str(ws_portfolio) + " 'Account Value' from: " + str(ws_portfolio.cell(row=2, column=8).value) + " to: $" + str(accountValue))
-        print("Updated " + str(ws_contributed) + " 'Account Value' from: " + str(ws_contributed.cell(row=2, column=4).value) + " to: $" + str(accountValue))
         ws_portfolio.cell(row=2, column=8, value=accountValue) # update total account value cell
-        ws_contributed.cell(row=2, column=4, value=accountValue) # update total account value cell
+
+        if (year == 2021):
+            print("Updated " + str(ws_contributed) + " 'Account Value' from: " + str(ws_contributed.cell(row=2, column=4).value) + " to: $" + str(accountValue))
+            ws_contributed.cell(row=2, column=4, value=accountValue) # update YTD account value cell
+        if (year == 2022):
+            print("Updated " + str(ws_contributed) + " 'Account Value' from: " + str(ws_contributed.cell(row=2, column=8).value) + " to: $" + str(accountValue))
+            ws_contributed.cell(row=2, column=8, value=accountValue) # update YTD account value cell
+
         # save the excel file
         excelWorkBook.save(workBookPath)
-
     except:
+        #print(e)
         traceback.print_exc() # stacktrace
         input("There was an error updating the total account value. Make sure the spreadsheet isn't already opened. Press Enter to continue...")
 
@@ -125,29 +134,33 @@ def updateAccountValue():
 
 
 '''
-Convert the date format of exammple: 2021-08-13T16:20:10+0000 -> 08/13/2021
+Convert the date format of example: 2021-08-13T16:20:10+0000 -> 08/13/2021
 '''
 def convertAnnoyingDateFormat(date):
     oldDateFormat = datetime.strptime(str(date), '%Y-%m-%dT%H:%M:%S%z')
     parsedDate = datetime.strftime(oldDateFormat, '%m/%d/%Y')
     return parsedDate
-
-
+        
 '''
-Update the 'Transactions' sheet with the transaction data for every transaction in the 'transactions' dictionary
+Update the 'Transactions' sheet with data from every transaction in the 'transactions' dictionary
 '''
 def updateTransactions():
     try:
         print("Updated the " + str(ws_transactions) + " with the following transaction data: ")
         i = 0
         while i < len(transactions): # while i < the size of the transactions list
-            id = int(transactions[i]['transactionId']) # grab the ID from the list
+            id = int(transactions[i]['orderId']) # grab the ID from the list
             symbol = str(transactions[i]['transactionItem']['instrument']['symbol'])
             date = str((transactions[i]['transactionDate']))
             date = convertAnnoyingDateFormat(date) # convert the annoying tedious ameritradious date format to a readable format.
-            amount_paid = -1 * float(transactions[i]['netAmount']) # Convert the negative transaction to a positive float of a string.
+            amount_paid = float(transactions[i]['netAmount'])
             share_price = float(transactions[i]['transactionItem']['price'])
             shares = int(transactions[i]['transactionItem']['amount'])
+
+            if (amount_paid < 0): # If the transaction was a "Buy"
+                amount_paid = -1 * amount_paid # Convert the negative 'transaction' to a positive float.
+            else:
+                shares = -1 * shares # subtract the amount of 'shares' you own
 
             index = i+2
             ws_transactions.cell(row=index, column=1, value=id) # update ID cells
@@ -168,19 +181,18 @@ def updateTransactions():
 
 
 
-def sleep():
-    #updateTransactions()
-    #updateAccountValue()
+def recursiveUpdate():
     updateStockData()
     print("Updated Transactions! \n")
     time.sleep(10)
-    sleep() #recursion
+    recursiveUpdate() #recursion
 
 print("Do you want to run continuously? (Press 1), otherwise, press (Enter)...")
 nonStopRun = input().lower()
 if nonStopRun == "1":
-    sleep()
-if nonStopRun != "1":
+    recursiveUpdate()
+else:
+    #print(transactions)
     updateTransactions()
     updateAccountValue()
     updateStockData()
