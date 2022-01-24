@@ -24,7 +24,7 @@ transactions = td_client.get_transactions(account=TD_ACCOUNT, transaction_type='
 accountData = td_client.get_accounts(account=TD_ACCOUNT, fields=['orders']) # get the account data
 positionsData = td_client.get_accounts(account=TD_ACCOUNT, fields=["positions"])
 # account value of TD Ameritrade account
-accountValue = accountData['securitiesAccount']['initialBalances']['accountValue'] # array list with dics within dics
+accountValue = accountData['securitiesAccount']['initialBalances']['accountValue'] # list with nested dictionary
 
 
 '''
@@ -73,7 +73,7 @@ excelWorkBook = openpyxl.load_workbook(workBookPath)
 
 ws_transactions = excelWorkBook['Transactions']     # Transactions worksheet in TD Ameritrade Stonks.xlxs
 ws_contributed = excelWorkBook['$Contributed$']     # $Contributed$ worksheet in TD Ameritrade Stonks.xlxs
-ws_portfolio = excelWorkBook['2021 Portfolio']      # Portfolio worksheet in TD Ameritrade Stonks.xlxs
+ws_portfolio = excelWorkBook['Portfolio']      # Portfolio worksheet in TD Ameritrade Stonks.xlxs
 ws_position_data = excelWorkBook['Position Data']   # Position Data worksheet in TD Ameritrade Stonks.xlxs
 
 
@@ -86,8 +86,12 @@ def updateStockData():
     index = 1
     for stonk in values:
         index+=1
-
-        print(f"{stonk['symbol']} Last Price changed from: ${(ws_position_data.cell(row=index, column =4).value)} to:  ${stonk['lastPrice']}")
+        
+        oldPrice = float(ws_position_data.cell(row=index, column=4).value)
+        newPrice = float(stonk['lastPrice'])
+        delta = ((newPrice - oldPrice) / oldPrice)
+        percent = "{:.2%}".format(delta) # format 2 decimal places example: 0.0345 = 3.45
+        print(f"{stonk['symbol']} Last Price changed from: ${(ws_position_data.cell(row=index, column =4).value)} to: ${stonk['lastPrice']} | change: {percent}")
         ws_position_data.cell(row=index, column=1, value=str(stonk['symbol'])).number_format = '$#,##0.00'          # update symbol cells
         ws_position_data.cell(row=index, column=2, value=float(stonk['bidPrice'])).number_format = '$#,##0.00'      # update bidPrice cells
         ws_position_data.cell(row=index, column=3, value=float(stonk['askPrice'])).number_format = '$#,##0.00'      # update askPrice cells
@@ -105,8 +109,7 @@ Update total account value
 '''
 def updateAccountValue():
     currentYear = datetime.now()
-    day = currentYear.date()
-    year = int(day.strftime("%Y"))
+    year = int(currentYear.date().strftime("%Y"))
     try:
         # update total account value cell
         print(f"Updated {ws_portfolio} 'Account Value' from: {ws_portfolio.cell(row=2, column=8).value} to: ${accountValue}")
@@ -133,8 +136,8 @@ def updateAccountValue():
 Convert the date format of example: 2021-08-13T16:20:10+0000 -> 08/13/2021
 '''
 def convertAnnoyingDateFormat(date: str) -> str:
-    oldDateFormat = datetime.strptime(str(date), '%Y-%m-%dT%H:%M:%S%z')
-    parsedDate = datetime.strftime(oldDateFormat, '%m/%d/%Y')
+    oldDateFormat = datetime.strptime(date, "%Y-%m-%dT%H:%M:%S%z")
+    parsedDate = datetime.strftime(oldDateFormat, "%m/%d/%Y")
     return parsedDate
         
 '''
