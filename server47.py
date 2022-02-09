@@ -1,3 +1,4 @@
+from multiprocessing import Value
 import time, calendar
 from datetime import datetime
 import traceback # stack trace
@@ -12,14 +13,15 @@ from secretunstageddata import TD_ACCOUNT # TODO SET ENVIRONMENT VARIABLES
 #pip install td-ameritrade-python-api
 #https://www.youtube.com/watch?v=8N1IxYXs4e8
 
-#======================================
+#=====================================================================================================================================================================
 #           TD AMERITRADE
-#======================================
+#=====================================================================================================================================================================
 td_client = TDClient(client_id= CONSUMER_KEY, redirect_uri= REDIRECT_URI, credentials_path= JSON_PATH)
 td_client.login() # Authenticate. This needs to be done every 90 days.
 
 
 transactions = td_client.get_transactions(account=TD_ACCOUNT, transaction_type='BUY_ONLY') # get the transactions that are BUY ORDERS ONLY
+dividends = td_client.get_transactions(account=TD_ACCOUNT, transaction_type='DIVIDEND') # get the transactions that were dividends
 
 accountData = td_client.get_accounts(account=TD_ACCOUNT, fields=['orders']) # get the account data
 positionsData = td_client.get_accounts(account=TD_ACCOUNT, fields=["positions"])
@@ -58,15 +60,14 @@ def getPriceHistory(symbol: str, startdate: str, enddate: str):
     print(price_history)
 
 
-
 def getCurrentPositionMarketValue(symbol: str):
     for i in range(0, len(positionsData['securitiesAccount']['positions'])):
         if symbol == positionsData["securitiesAccount"]['positions'][i]['instrument']['symbol']: # if the string entered matches the position index symbol string
             return positionsData["securitiesAccount"]['positions'][i]['marketValue'] # return the current market value
 
-#======================================
+#=====================================================================================================================================================================
 #           EXCEL WORK BOOK
-#======================================
+#=====================================================================================================================================================================
 # | FIELDS | #
 workBookPath = "./excelworkbooktest/TD Ameritrade stonks.xlsx"
 excelWorkBook = openpyxl.load_workbook(workBookPath)
@@ -75,12 +76,13 @@ ws_transactions = excelWorkBook['Transactions']     # Transactions worksheet in 
 ws_contributed = excelWorkBook['$Contributed$']     # $Contributed$ worksheet in TD Ameritrade Stonks.xlxs
 ws_portfolio = excelWorkBook['Portfolio']      # Portfolio worksheet in TD Ameritrade Stonks.xlxs
 ws_position_data = excelWorkBook['Position Data']   # Position Data worksheet in TD Ameritrade Stonks.xlxs
+ws_dividends = excelWorkBook['Dividends']
 
 
 '''
 Update the 'Position Data' excel worksheet with all owned symbol data (bid price, last price, etc...)
 '''
-def updateStockData():
+def updateStockData() -> None:
     quotes = td_client.get_quotes(getOwnedPositionSymbols())
     values = list(quotes.values())      # list of all dictionary key values (bidPrice, etc.)
     index = 1
@@ -105,16 +107,58 @@ def updateStockData():
 
 
 '''
+Update the 'Dividends' excel worksheet with all dividend transactions
+'''
+def updateDividendData() -> None:
+    try:
+        print(f"Updated the {ws_dividends} with the following transaction data: ")
+
+        for i in range(0, len(dividends)):               # while i < the size of the transactions list
+            id = int(dividends[i]['transactionId'])            # grab the ID from the list
+            symbol = str(dividends[i]['transactionItem']['instrument']['symbol'])
+            date = convertAnnoyingDateFormat(str((dividends[i]['transactionDate']))) # convert the annoying tedious ameritradious date format to a readable format.
+            amount_recieved = float(dividends[i]['netAmount'])
+            
+            index = i+2
+            ws_dividends.cell(row=index, column=1, value=id)         # update ID cells
+            ws_dividends.cell(row=index, column=2, value=symbol)     # update symbol cells
+            ws_dividends.cell(row=index, column=3, value=date)       # update date cells
+            ws_dividends.cell(row=index, column=4, value=amount_recieved).number_format = '$#,##0.00' # amount recieved for the dividend
+            
+            print(f"ID: {id} SYMBOL: {symbol} DATE: {date} DIV AMOUNT: ${amount_recieved}")
+        # save the excel file
+        excelWorkBook.save(workBookPath)
+    except:
+        traceback.print_exc() # stacktrace
+        input("There was an error updating the transactions. Make sure the spreadsheet isn't already opened. Press Enter to continue...")
+
+def updatePortfolio() -> None:
+    # Iterate through the columns and rows to look for the cell that has "Symbol" as the value
+    for column in range(1, 255):
+        for row in range(1, 255):
+            if (ws_portfolio.cell(row=row, column=column).value == "Symbol"): # If the cell has 'Symbol' as the value
+                for symbol in getOwnedPositionSymbols(): # For every symbol that is owned
+                    row=row+1 # iterate to the row just below the "Symbol" column
+                    ws_portfolio.cell(row=row, column=column, value=symbol) # Update the cells below the "Symbol" cell
+                break # Break out of the loop as we've finished updating
+    print(f"Updated {ws_portfolio} 'Symbols' to: {getOwnedPositionSymbols()}")
+                
+
+'''
 Update total account value 
 '''
-def updateAccountValue():
+def updateAccountValue() -> None:
     currentYear = datetime.now()
     year = int(currentYear.date().strftime("%Y"))
     try:
-        # update total account value cell
-        print(f"Updated {ws_portfolio} 'Account Value' from: {ws_portfolio.cell(row=2, column=8).value} to: ${accountValue}")
-        ws_portfolio.cell(row=2, column=8, value=accountValue)         
 
+        # Iterate through the columns and rows
+        for column in range(1, 255):
+            for row in range(1, 255):
+                if (ws_portfolio.cell(row=row, column=column).value == "Account Value"): # If the cell has 'Account Value' as the value
+                    print(f"Updated {ws_portfolio} 'Account Value' from: {ws_portfolio.cell(row=row+1, column=column).value} to: ${accountValue}")
+                    ws_portfolio.cell(row=row+1, column=column, value=accountValue) # Update the cell just below "Account Value" cell
+                
         if (year == 2021):
             print(f"Updated {ws_contributed} 'Account Value' from: {ws_contributed.cell(row=2, column=4).value} to: ${accountValue}")
             ws_contributed.cell(row=2, column=4, value=accountValue)    # update YTD account value cell for 2021
@@ -150,8 +194,7 @@ def updateTransactions():
         for i in range(0, len(transactions)):               # while i < the size of the transactions list
             id = int(transactions[i]['orderId'])            # grab the ID from the list
             symbol = str(transactions[i]['transactionItem']['instrument']['symbol'])
-            date = str((transactions[i]['transactionDate']))
-            date = convertAnnoyingDateFormat(date)          # convert the annoying tedious ameritradious date format to a readable format.
+            date = convertAnnoyingDateFormat(str((transactions[i]['transactionDate']))) # convert the annoying tedious ameritradious date format to a readable format.
             amount_paid = float(transactions[i]['netAmount'])
             share_price = float(transactions[i]['transactionItem']['price'])
             shares = int(transactions[i]['transactionItem']['amount'])
@@ -194,6 +237,8 @@ def main():
         recursiveUpdate()
     else:
         updateTransactions()
+        updateDividendData()
+        updatePortfolio()
         updateAccountValue()
         updateStockData()
         input("Updated! Press Enter to close...")
