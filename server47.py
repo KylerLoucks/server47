@@ -1,11 +1,10 @@
-from multiprocessing import Value
 import time, calendar
 from datetime import datetime
 import traceback # stack trace
 from td.client import TDClient
 import openpyxl # excel library
-from data import CONSUMER_KEY, REDIRECT_URI, JSON_PATH # Import from data.py
-from secretunstageddata import TD_ACCOUNT # TODO SET ENVIRONMENT VARIABLES
+from data import TD_ACCOUNT, CONSUMER_KEY, REDIRECT_URI, JSON_PATH # Import from data.py
+#from secretunstageddata import TD_ACCOUNT # TODO SET ENVIRONMENT VARIABLES
 
 
 
@@ -238,9 +237,15 @@ def main():
     else:
         updateTransactions()
         updateDividendData()
-        updatePortfolio()
         updateAccountValue()
         updateStockData()
+        
+        print("Do you want to update the symbols you own? (y/n), otherwise, press (Enter)...")
+        updatePortfolioSymbols = input().lower()
+        if updatePortfolioSymbols == "Y":
+            updatePortfolio()
+            input("Updated! Press Enter to close...")
+        
         input("Updated! Press Enter to close...")
 
 if __name__ == "__main__":
