@@ -1,9 +1,24 @@
 # server47
-Updates "TD Ameritrade Stonks.xlsx" file with API call to TD Ameritrade developer API account transactions
+Updates "TD Ameritrade Stonks.xlsx" file with position data pulled from an API call to TD Ameritrade for a visual portfolio of your account
 
 1.
-Create a file named 'secretunstageddata.py' and include the following lines in the file:
-TD_ACCOUNT = <your_account_id> # replace <your_account_id> with your 9 digit TD Ameritrade account ID. (E.g. 123456789)
+Navigate to Windows Start Menu > Search for environment variables
+![image](https://user-images.githubusercontent.com/60449948/153258085-347e2969-28af-49b5-be83-74e671656277.png)
+
+
+Navigate to Advanced > Environment Variables
+![Screenshot 2022-02-09 094717](https://user-images.githubusercontent.com/60449948/153260484-8c516418-f881-406e-a02d-87226475491b.png)
+
+
+
+Create a new User Variable
+![Screenshot 2022-02-09 095449](https://user-images.githubusercontent.com/60449948/153261239-4de7f63e-75ed-488f-a371-7e393c6d80e0.png)
+
+
+
+Variable Name: TD_ACCOUNT 
+Variable Value: <your_account_id> (E.g. 123456789)
+![image](https://user-images.githubusercontent.com/60449948/153259075-15873f65-b243-4c63-bb1d-866456fb5eb2.png)
 
 
 2.
