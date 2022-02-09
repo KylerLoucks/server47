@@ -1,5 +1,5 @@
 # server47
-Updates "TD Ameritrade Stonks.xlsx" file with position data pulled from an API call to TD Ameritrade for a visual portfolio of your account
+Updates "TD Ameritrade Stonks.xlsx" excel spreadsheet with position data pulled from an API call to TD Ameritrade for a visual portfolio of your account
 
 1.
 Navigate to Windows Start Menu > Search for environment variables
