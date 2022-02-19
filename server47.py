@@ -1,6 +1,7 @@
 import time
 from datetime import datetime
 import traceback # stack trace
+import os
 from td.client import TDClient
 import openpyxl as excel # excel library
 from data import TD_ACCOUNT, CONSUMER_KEY, REDIRECT_URI, JSON_PATH # Import from data.py
@@ -49,7 +50,13 @@ def get_owned_position_symbols() -> list:
 # | FIELDS | #
 BASE_WORK_BOOK_PATH = "./excelworkbook/base.xlsx"
 SAVE_PATH = "./portfolio.xlsx"
-EXCEL_WORK_BOOK = excel.load_workbook(BASE_WORK_BOOK_PATH)
+
+# if portfolio.xlsx exists, use it as the main file, otherwise use the base.xlsx file
+if os.path.exists("./portfolio.xlsx"):
+    BASE_WORK_BOOK_PATH = "./portfolio.xlsx"
+    EXCEL_WORK_BOOK = excel.load_workbook("./portfolio.xlsx")
+else:
+    EXCEL_WORK_BOOK = excel.load_workbook(BASE_WORK_BOOK_PATH)
 
 ws_transactions = EXCEL_WORK_BOOK['Transactions']     # Transactions worksheet in TD Ameritrade Stonks.xlxs
 ws_contributed = EXCEL_WORK_BOOK['Contributed']     # $Contributed$ worksheet in TD Ameritrade Stonks.xlxs
