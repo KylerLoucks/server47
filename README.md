@@ -20,11 +20,11 @@ Create a new User Variable
 
 
 Variable Name: TD_ACCOUNT 
-Variable Value: <your_account_id> (E.g. 123456789)
+Variable Value: <your_9-digit-account_id> (E.g. 123456789)
 ![image](https://user-images.githubusercontent.com/60449948/153259075-15873f65-b243-4c63-bb1d-866456fb5eb2.png)
 
 
-### Step 2 - Authenticate by logging into your account to create an access token
+### Step 2 - Start server47.py and authenticate by logging into your account
 On the first execution of the application, you'll be asked to authenticate. A link will be provided to do so in the console.
 Once you navigate to the link, you'll be asked to sign-in to TD Ameritrade. 
 After signing in, you be directed to a dead page. Copy the entire link of that page and paste it in the application prompt.
