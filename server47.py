@@ -58,10 +58,10 @@ if os.path.exists("./portfolio.xlsx"):
 else:
     EXCEL_WORK_BOOK = excel.load_workbook(BASE_WORK_BOOK_PATH)
 
-ws_transactions = EXCEL_WORK_BOOK['Transactions']     # Transactions worksheet in TD Ameritrade Stonks.xlxs
-ws_contributed = EXCEL_WORK_BOOK['Contributed']     # $Contributed$ worksheet in TD Ameritrade Stonks.xlxs
-ws_portfolio = EXCEL_WORK_BOOK['Portfolio']           # Portfolio worksheet in TD Ameritrade Stonks.xlxs
-ws_position_data = EXCEL_WORK_BOOK['Position Data']   # Position Data worksheet in TD Ameritrade Stonks.xlxs
+ws_transactions = EXCEL_WORK_BOOK['Transactions']     # Transactions worksheet in spreadsheet
+ws_contributed = EXCEL_WORK_BOOK['Contributed']       # Contributed worksheet in spreadsheet
+ws_portfolio = EXCEL_WORK_BOOK['Portfolio']           # Portfolio worksheet in spreadsheet
+ws_position_data = EXCEL_WORK_BOOK['Position Data']   # Position Data worksheet in spreadsheet
 ws_dividends = EXCEL_WORK_BOOK['Dividends']
 
 
@@ -69,29 +69,33 @@ ws_dividends = EXCEL_WORK_BOOK['Dividends']
 Update the 'Position Data' excel worksheet with all owned symbol data (bid price, last price, etc...)
 '''
 def update_stock_data() -> None:
-    quotes = TD_CLIENT.get_quotes(get_owned_position_symbols())
-    values = list(quotes.values())      # list of all dictionary key values (bidPrice, etc.)
-    index = 1
-    for stonk in values:
-        index+=1
-        
-        if (ws_position_data.cell(row=index, column=4).value != None):
-            old_price = float(ws_position_data.cell(row=index, column=4).value)
-            new_price = float(stonk['lastPrice'])
-            delta = ((new_price - old_price) / old_price)
-            percent = "{:.2%}".format(delta) # format 2 decimal places example: 0.0345 = 3.45
-            print(f"{stonk['symbol']} Last Price changed from: ${(ws_position_data.cell(row=index, column=4).value)} to: ${stonk['lastPrice']} | change: {percent}")
+    try:
+        quotes = TD_CLIENT.get_quotes(get_owned_position_symbols())
+        values = list(quotes.values()) # list of all dictionary key values (bidPrice, etc.)
+        index = 1
+        for stonk in values:
+            index+=1
+            
+            if (ws_position_data.cell(row=index, column=4).value != None):
+                old_price = float(ws_position_data.cell(row=index, column=4).value)
+                new_price = float(stonk['lastPrice'])
+                delta = ((new_price - old_price) / old_price)
+                percent = "{:.2%}".format(delta) # format 2 decimal places example: 0.0345 = 3.45
+                print(f"{stonk['symbol']} Last Price changed from: ${(ws_position_data.cell(row=index, column=4).value)} to: ${stonk['lastPrice']} | change: {percent}")
 
-        ws_position_data.cell(row=index, column=1, value=str(stonk['symbol'])).number_format = '$#,##0.00'          # update symbol cells
-        ws_position_data.cell(row=index, column=2, value=float(stonk['bidPrice'])).number_format = '$#,##0.00'      # update bidPrice cells
-        ws_position_data.cell(row=index, column=3, value=float(stonk['askPrice'])).number_format = '$#,##0.00'      # update askPrice cells
-        ws_position_data.cell(row=index, column=4, value=float(stonk['lastPrice'])).number_format = '$#,##0.00'     # update lastPrice cells
-        ws_position_data.cell(row=index, column=5, value=float(stonk['openPrice'])).number_format = '$#,##0.00'     # update openPrice cells
-        ws_position_data.cell(row=index, column=6, value=float(stonk['highPrice'])).number_format = '$#,##0.00'     # update highPrice cells
-        ws_position_data.cell(row=index, column=7, value=float(stonk['lowPrice'])).number_format = '$#,##0.00'      # update lowPrice cells
-        ws_position_data.cell(row=index, column=8, value=float(stonk['closePrice'])).number_format = '$#,##0.00'    # update closePrice cells
+            ws_position_data.cell(row=index, column=1, value=str(stonk['symbol'])).number_format = '$#,##0.00'          # update symbol cells
+            ws_position_data.cell(row=index, column=2, value=float(stonk['bidPrice'])).number_format = '$#,##0.00'      # update bidPrice cells
+            ws_position_data.cell(row=index, column=3, value=float(stonk['askPrice'])).number_format = '$#,##0.00'      # update askPrice cells
+            ws_position_data.cell(row=index, column=4, value=float(stonk['lastPrice'])).number_format = '$#,##0.00'     # update lastPrice cells
+            ws_position_data.cell(row=index, column=5, value=float(stonk['openPrice'])).number_format = '$#,##0.00'     # update openPrice cells
+            ws_position_data.cell(row=index, column=6, value=float(stonk['highPrice'])).number_format = '$#,##0.00'     # update highPrice cells
+            ws_position_data.cell(row=index, column=7, value=float(stonk['lowPrice'])).number_format = '$#,##0.00'      # update lowPrice cells
+            ws_position_data.cell(row=index, column=8, value=float(stonk['closePrice'])).number_format = '$#,##0.00'    # update closePrice cells
 
-    EXCEL_WORK_BOOK.save(SAVE_PATH)
+        EXCEL_WORK_BOOK.save(SAVE_PATH)
+    except:
+        traceback.print_exc() # stacktrace
+        input("There was an error updating the transactions. Make sure the spreadsheet isn't already opened. Press Enter to continue...")
 
 
 '''
@@ -128,7 +132,7 @@ def update_dividend_data() -> None:
 
         # save the excel file
         EXCEL_WORK_BOOK.save(SAVE_PATH)
-    except Exception as e:
+    except:
         traceback.print_exc() # stacktrace
         input("There was an error updating the transactions. Make sure the spreadsheet isn't already opened. Press Enter to continue...")
 
@@ -165,7 +169,7 @@ def update_contributed_data() -> None:
             
         # save the excel file
         EXCEL_WORK_BOOK.save(SAVE_PATH)
-    except Exception as e:
+    except:
         traceback.print_exc() # stacktrace
         input("There was an error updating the transactions. Make sure the spreadsheet isn't already opened. Press Enter to continue...")
 
@@ -187,8 +191,6 @@ def update_account_value() -> None:
     """
     Update total Account Value
     """
-    currentYear = datetime.now()
-    year = int(currentYear.date().strftime("%Y"))
     try:
 
         # Iterate through the columns and rows
@@ -197,13 +199,6 @@ def update_account_value() -> None:
                 if (ws_portfolio.cell(row=row, column=column).value == "Account Value"): # If the cell has 'Account Value' as the value
                     print(f"Updated {ws_portfolio} 'Account Value' from: {ws_portfolio.cell(row=row+1, column=column).value} to: ${ACCOUNT_VALUE}")
                     ws_portfolio.cell(row=row+1, column=column, value=ACCOUNT_VALUE) # Update the cell just below "Account Value" cell
-                
-        # if (year == 2021):
-        #     print(f"Updated {ws_contributed} 'Account Value' from: {ws_contributed.cell(row=2, column=4).value} to: ${ACCOUNT_VALUE}")
-        #     ws_contributed.cell(row=2, column=4, value=ACCOUNT_VALUE)    # update YTD account value cell for 2021
-        # if (year == 2022):
-        #     print(f"Updated {ws_contributed} 'Account Value' from: {ws_contributed.cell(row=2, column=9).value} to: ${ACCOUNT_VALUE}")
-        #     ws_contributed.cell(row=2, column=9, value=ACCOUNT_VALUE)    # update YTD account value cell for 2022
 
         # save the excel file
         EXCEL_WORK_BOOK.save(SAVE_PATH)
@@ -211,9 +206,6 @@ def update_account_value() -> None:
         #print(e)
         traceback.print_exc() # stacktrace
         input("There was an error updating the total account value. Make sure the spreadsheet isn't already opened. Press Enter to continue...")
-
-
-
 
 
 def convert_annoying_date_format(date: str) -> str:
