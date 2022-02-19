@@ -22,7 +22,7 @@ TRANSACTIONS_DICT = TD_CLIENT.get_transactions(account=TD_ACCOUNT, transaction_t
 
 # get the transactions that were dividends
 DIVIDENDS_DICT = TD_CLIENT.get_transactions(account=TD_ACCOUNT, transaction_type='DIVIDEND') 
-
+PRINCIPAL = TD_CLIENT.get_transactions(account=TD_ACCOUNT, transaction_type='CASH_IN_OR_CASH_OUT')
 # get the account data
 ACCOUNT_DATA_DICT = TD_CLIENT.get_accounts(account=TD_ACCOUNT, fields=['orders'])
 
@@ -31,8 +31,6 @@ POSITION_DATA_DICT = TD_CLIENT.get_accounts(account=TD_ACCOUNT, fields=["positio
 
 # account value of TD Ameritrade account
 ACCOUNT_VALUE = ACCOUNT_DATA_DICT['securitiesAccount']['initialBalances']['accountValue']
-
-
 
 def get_owned_position_symbols() -> list:
     '''
@@ -45,42 +43,16 @@ def get_owned_position_symbols() -> list:
             #print(str(POSITION_DATA_DICT["securitiesAccount"]["positions"][i]['instrument']['symbol']))
     return owned_positions
 
-
-
-# def convert_utc_to_epoch_miliseconds(date: str) -> int:
-#     '''
-#     Convert a date string in the format "MM/DD/YYYY" to UTC Epoch
-#     Variables: date - the date string
-#     Epoch time in miliseconds for the final trading day of 2020 (GMT Thursday, December 31, 2020 6:00:00 AM)
-#     '''
-    
-#     time_var = " 06:00:00"
-#     dt_obj = datetime.strptime((date + time_var), "%m/%d/%Y %H:%M:%S") # parse string to datetime object
-#     epoch = calendar.timegm(dt_obj.utctimetuple())
-#     return epoch * 1000 # multiply result by 1000 to account for miliseconds
-
-# def getPriceHistory(symbol: str, startdate: str, enddate: str) -> None:
-#     startdate = str(convert_utc_to_epoch_miliseconds(startdate))
-#     enddate = str(convert_utc_to_epoch_miliseconds(enddate))
-#     price_history = td_client.get_price_history(symbol=symbol, start_date=startdate, end_date=enddate)
-
-#     print(price_history)
-
-
-# def get_current_position_market_value(symbol: str) -> None:
-#     for i in range(0, len(positions_data['securitiesAccount']['positions'])):
-#         if symbol == positions_data["securitiesAccount"]['positions'][i]['instrument']['symbol']: # if the string entered matches the position index symbol string
-#             return positions_data["securitiesAccount"]['positions'][i]['marketValue'] # return the current market value
-
 #=====================================================================================================================================================================
 #           EXCEL WORK BOOK
 #=====================================================================================================================================================================
 # | FIELDS | #
-WORK_BOOK_PATH = "./excelworkbooktest/TD Ameritrade stonks.xlsx"
-EXCEL_WORK_BOOK = excel.load_workbook(WORK_BOOK_PATH)
+BASE_WORK_BOOK_PATH = "./excelworkbook/base.xlsx"
+SAVE_PATH = "./portfolio.xlsx"
+EXCEL_WORK_BOOK = excel.load_workbook(BASE_WORK_BOOK_PATH)
 
 ws_transactions = EXCEL_WORK_BOOK['Transactions']     # Transactions worksheet in TD Ameritrade Stonks.xlxs
-ws_contributed = EXCEL_WORK_BOOK['$Contributed$']     # $Contributed$ worksheet in TD Ameritrade Stonks.xlxs
+ws_contributed = EXCEL_WORK_BOOK['Contributed']     # $Contributed$ worksheet in TD Ameritrade Stonks.xlxs
 ws_portfolio = EXCEL_WORK_BOOK['Portfolio']           # Portfolio worksheet in TD Ameritrade Stonks.xlxs
 ws_position_data = EXCEL_WORK_BOOK['Position Data']   # Position Data worksheet in TD Ameritrade Stonks.xlxs
 ws_dividends = EXCEL_WORK_BOOK['Dividends']
@@ -96,11 +68,13 @@ def update_stock_data() -> None:
     for stonk in values:
         index+=1
         
-        old_price = float(ws_position_data.cell(row=index, column=4).value)
-        new_price = float(stonk['lastPrice'])
-        delta = ((new_price - old_price) / old_price)
-        percent = "{:.2%}".format(delta) # format 2 decimal places example: 0.0345 = 3.45
-        print(f"{stonk['symbol']} Last Price changed from: ${(ws_position_data.cell(row=index, column=4).value)} to: ${stonk['lastPrice']} | change: {percent}")
+        if (ws_position_data.cell(row=index, column=4).value != None):
+            old_price = float(ws_position_data.cell(row=index, column=4).value)
+            new_price = float(stonk['lastPrice'])
+            delta = ((new_price - old_price) / old_price)
+            percent = "{:.2%}".format(delta) # format 2 decimal places example: 0.0345 = 3.45
+            print(f"{stonk['symbol']} Last Price changed from: ${(ws_position_data.cell(row=index, column=4).value)} to: ${stonk['lastPrice']} | change: {percent}")
+
         ws_position_data.cell(row=index, column=1, value=str(stonk['symbol'])).number_format = '$#,##0.00'          # update symbol cells
         ws_position_data.cell(row=index, column=2, value=float(stonk['bidPrice'])).number_format = '$#,##0.00'      # update bidPrice cells
         ws_position_data.cell(row=index, column=3, value=float(stonk['askPrice'])).number_format = '$#,##0.00'      # update askPrice cells
@@ -110,7 +84,7 @@ def update_stock_data() -> None:
         ws_position_data.cell(row=index, column=7, value=float(stonk['lowPrice'])).number_format = '$#,##0.00'      # update lowPrice cells
         ws_position_data.cell(row=index, column=8, value=float(stonk['closePrice'])).number_format = '$#,##0.00'    # update closePrice cells
 
-    EXCEL_WORK_BOOK.save(WORK_BOOK_PATH)
+    EXCEL_WORK_BOOK.save(SAVE_PATH)
 
 
 '''
@@ -119,25 +93,75 @@ Update the 'Dividends' excel worksheet with all dividend transactions
 def update_dividend_data() -> None:
     try:
         print(f"Updated the {ws_dividends} with the following transaction data: ")
+        dividend_list = list(DIVIDENDS_DICT) 
+        dividend_list.reverse()
+        
+        for i in range(0, len(dividend_list)):
+            transaction_id = int(dividend_list[i]['transactionId']) # grab the ID from the list
+            symbol = str(dividend_list[i]['transactionItem']['instrument']['symbol'])
+            date = convert_annoying_date_format(str((dividend_list[i]['transactionDate']))) # convert the annoying tedious ameritradious date format to a readable format.
+            amount_recieved = float(dividend_list[i]['netAmount'])
+            
 
-        for i in range(0, len(DIVIDENDS_DICT)):               # while i < the size of the transactions list
-            id = int(DIVIDENDS_DICT[i]['transactionId'])            # grab the ID from the list
-            symbol = str(DIVIDENDS_DICT[i]['transactionItem']['instrument']['symbol'])
-            date = convert_annoying_date_format(str((DIVIDENDS_DICT[i]['transactionDate']))) # convert the annoying tedious ameritradious date format to a readable format.
-            amount_recieved = float(DIVIDENDS_DICT[i]['netAmount'])
             
-            index = i+2
-            ws_dividends.cell(row=index, column=1, value=id)         # update ID cells
-            ws_dividends.cell(row=index, column=2, value=symbol)     # update symbol cells
-            ws_dividends.cell(row=index, column=3, value=date)       # update date cells
-            ws_dividends.cell(row=index, column=4, value=amount_recieved).number_format = '$#,##0.00' # amount recieved for the dividend
-            
-            print(f"ID: {id} SYMBOL: {symbol} DATE: {date} DIV AMOUNT: ${amount_recieved}")
+            rows = list(ws_dividends['A']) # list of rows in the 'A' column
+            for index in range(2, len(rows)+2): # start iterating at the row below the column header
+                # if the entry is already found, don't overwrite the cell and break the loop
+                if (ws_dividends.cell(row=index, column=1).value == transaction_id):
+                    break
+                # if the row already has data populated
+                if (ws_dividends.cell(row=index, column=1).value != None):
+                    continue # iterate the loop
+                ws_dividends.cell(row=index, column=1, value=transaction_id)         # update ID cells
+                ws_dividends.cell(row=index, column=2, value=symbol)     # update symbol cells
+                ws_dividends.cell(row=index, column=3, value=date)       # update date cells
+                ws_dividends.cell(row=index, column=4, value=amount_recieved).number_format = '$#,##0.00' # amount recieved for the dividend
+                print(f"ID: {transaction_id} SYMBOL: {symbol} DATE: {date} DIV AMOUNT: ${amount_recieved}")
+                break
+
         # save the excel file
-        EXCEL_WORK_BOOK.save(WORK_BOOK_PATH)
-    except:
+        EXCEL_WORK_BOOK.save(SAVE_PATH)
+    except Exception as e:
         traceback.print_exc() # stacktrace
         input("There was an error updating the transactions. Make sure the spreadsheet isn't already opened. Press Enter to continue...")
+
+'''
+Update the 'Contributed' excel worksheet with all principal transactions
+'''
+def update_contributed_data() -> None:
+    try:
+        print(f"Updated the {ws_contributed} with the following transaction data: ")
+        
+        # Append the dictionary to a list and reverse it so the transactions show in ascending order
+        principal_list = list(PRINCIPAL) 
+        principal_list.reverse()
+
+        # for i = 0; i < the size of the list; i++
+        for i in range(0, len(principal_list)):               
+            transaction_id = int(principal_list[i]['transactionId']) # grab the ID from the list
+            date = convert_annoying_date_format(str((principal_list[i]['transactionDate']))) # convert the annoying tedious ameritradious date format to a readable format.
+            amount_contributed = float(principal_list[i]['netAmount'])
+            
+            rows = list(ws_contributed['A']) # list of rows in the 'A' column that have data
+            for index in range(2, len(rows)+2):
+                # if the entry is already found, don't overwrite the cell
+                if (ws_contributed.cell(row=index, column=1).value == transaction_id):
+                    break
+                # if the row already has data populated
+                if (ws_contributed.cell(row=index, column=1).value != None):
+                    continue # iterate the loop
+                ws_contributed.cell(row=index, column=1, value=transaction_id)         # update ID cells
+                ws_contributed.cell(row=index, column=2, value=date)                   # update date cells
+                ws_contributed.cell(row=index, column=3, value=amount_contributed).number_format = '$#,##0.00' # amount contributed to the TD account
+                print(f"ID: {transaction_id} DATE: {date} AMOUNT: ${amount_contributed}")
+                break
+            
+        # save the excel file
+        EXCEL_WORK_BOOK.save(SAVE_PATH)
+    except Exception as e:
+        traceback.print_exc() # stacktrace
+        input("There was an error updating the transactions. Make sure the spreadsheet isn't already opened. Press Enter to continue...")
+
 
 def update_portfolio() -> None:
     # Iterate through the columns and rows to look for the cell that has "Symbol" as the value
@@ -149,6 +173,7 @@ def update_portfolio() -> None:
                     ws_portfolio.cell(row=row, column=column, value=symbol) # Update the cells below the "Symbol" cell
                 break # Break out of the loop as we've finished updating
     print(f"Updated {ws_portfolio} 'Symbols' to: {get_owned_position_symbols()}")
+    EXCEL_WORK_BOOK.save(SAVE_PATH)
                 
 
 def update_account_value() -> None:
@@ -166,15 +191,15 @@ def update_account_value() -> None:
                     print(f"Updated {ws_portfolio} 'Account Value' from: {ws_portfolio.cell(row=row+1, column=column).value} to: ${ACCOUNT_VALUE}")
                     ws_portfolio.cell(row=row+1, column=column, value=ACCOUNT_VALUE) # Update the cell just below "Account Value" cell
                 
-        if (year == 2021):
-            print(f"Updated {ws_contributed} 'Account Value' from: {ws_contributed.cell(row=2, column=4).value} to: ${ACCOUNT_VALUE}")
-            ws_contributed.cell(row=2, column=4, value=ACCOUNT_VALUE)    # update YTD account value cell for 2021
-        if (year == 2022):
-            print(f"Updated {ws_contributed} 'Account Value' from: {ws_contributed.cell(row=2, column=9).value} to: ${ACCOUNT_VALUE}")
-            ws_contributed.cell(row=2, column=9, value=ACCOUNT_VALUE)    # update YTD account value cell for 2022
+        # if (year == 2021):
+        #     print(f"Updated {ws_contributed} 'Account Value' from: {ws_contributed.cell(row=2, column=4).value} to: ${ACCOUNT_VALUE}")
+        #     ws_contributed.cell(row=2, column=4, value=ACCOUNT_VALUE)    # update YTD account value cell for 2021
+        # if (year == 2022):
+        #     print(f"Updated {ws_contributed} 'Account Value' from: {ws_contributed.cell(row=2, column=9).value} to: ${ACCOUNT_VALUE}")
+        #     ws_contributed.cell(row=2, column=9, value=ACCOUNT_VALUE)    # update YTD account value cell for 2022
 
         # save the excel file
-        EXCEL_WORK_BOOK.save(WORK_BOOK_PATH)
+        EXCEL_WORK_BOOK.save(SAVE_PATH)
     except:
         #print(e)
         traceback.print_exc() # stacktrace
@@ -199,32 +224,43 @@ def update_transactions():
     '''
     try:
         print(f"Updated the {ws_transactions} with the following transaction data: ")
-        
+        transaction_list = list(TRANSACTIONS_DICT) 
+        transaction_list.reverse()
         # for i = 0; i < the size of the transactions list; ++i
-        for i in range(0, len(TRANSACTIONS_DICT)):    
-            id = int(TRANSACTIONS_DICT[i]['orderId'])            # grab the ID from the list
-            symbol = str(TRANSACTIONS_DICT[i]['transactionItem']['instrument']['symbol'])
-            date = convert_annoying_date_format(str((TRANSACTIONS_DICT[i]['transactionDate']))) # convert the annoying tedious ameritradious date format to a readable format.
-            amount_paid = float(TRANSACTIONS_DICT[i]['netAmount'])
-            share_price = float(TRANSACTIONS_DICT[i]['transactionItem']['price'])
-            shares = int(TRANSACTIONS_DICT[i]['transactionItem']['amount'])
+        for i in range(0, len(transaction_list)):    
+            id = int(transaction_list[i]['orderId'])            # grab the ID from the list
+            symbol = str(transaction_list[i]['transactionItem']['instrument']['symbol'])
+            date = convert_annoying_date_format(str((transaction_list[i]['transactionDate']))) # convert the annoying tedious ameritradious date format to a readable format.
+            amount_paid = float(transaction_list[i]['netAmount'])
+            share_price = float(transaction_list[i]['transactionItem']['price'])
+            shares = int(transaction_list[i]['transactionItem']['amount'])
 
             if (amount_paid < 0): # If the transaction was a "Buy"
                 amount_paid = -1 * amount_paid # Convert the negative 'transaction' to a positive float.
             else:
                 shares = -1 * shares # subtract the amount of 'shares' you own
 
-            index = i+2
-            ws_transactions.cell(row=index, column=1, value=id)         # update ID cells
-            ws_transactions.cell(row=index, column=2, value=symbol)     # update symbol cells
-            ws_transactions.cell(row=index, column=3, value=date)       # update date cells
-            ws_transactions.cell(row=index, column=4, value=share_price).number_format = '$#,##0.00' # update share_price cells
-            ws_transactions.cell(row=index, column=5, value=shares)     # update shares cells
-            ws_transactions.cell(row=index, column=6, value=amount_paid).number_format = '$#,##0.00' # update amount cells
+
+
+            rows = list(ws_transactions['A']) # list of cells in the 'A' column that have data in them
+            for index in range(2, len(rows)+2):
+                # if the entry is already found, don't overwrite the cell
+                if (ws_transactions.cell(row=index+1, column=1).value == id):
+                    break
+                # if the row already has data populated
+                if (ws_transactions.cell(row=index, column=1).value != None):
+                    continue # iterate the loop
+                ws_transactions.cell(row=index, column=1, value=id)         # update ID cells
+                ws_transactions.cell(row=index, column=2, value=symbol)     # update symbol cells
+                ws_transactions.cell(row=index, column=3, value=date)       # update date cells
+                ws_transactions.cell(row=index, column=4, value=share_price).number_format = '$#,##0.00' # update share_price cells
+                ws_transactions.cell(row=index, column=5, value=shares)     # update shares cells
+                ws_transactions.cell(row=index, column=6, value=amount_paid).number_format = '$#,##0.00' # update amount cells
+                print(f"ID: {id} SYMBOL: {symbol} DATE: {date} SHARE PRICE: {share_price} SHARES: {shares} AMOUNT PAID: {amount_paid}")
+                break
             
-            print(f"ID: {id} SYMBOL: {symbol} DATE: {date} SHARE PRICE: {share_price} SHARES: {shares} AMOUNT PAID: {amount_paid}")
         # save the excel file
-        EXCEL_WORK_BOOK.save(WORK_BOOK_PATH)
+        EXCEL_WORK_BOOK.save(SAVE_PATH)
     except:
         traceback.print_exc() # stacktrace
         input("There was an error updating the transactions. Make sure the spreadsheet isn't already opened. Press Enter to continue...")
@@ -241,6 +277,8 @@ def recursive_update():
 
 
 def main():
+    currentYear = datetime.now()
+    year = str(currentYear.date().strftime("%Y"))
     print("Do you want to run continuously? (Press 1), otherwise, press (Enter)...")
     non_stop_run = input().lower()
     if non_stop_run == "1":
@@ -250,13 +288,14 @@ def main():
         update_dividend_data()
         update_account_value()
         update_stock_data()
+        update_contributed_data()
         
         print("Do you want to update the symbols you own? (y/n), otherwise, press (Enter)...")
         update_portfolio_symbols = input().lower()
-        if update_portfolio_symbols == "Y":
+        if update_portfolio_symbols == "y":
             update_portfolio()
-            input("Updated! Press Enter to close...")
         
+        #EXCEL_WORK_BOOK.save(f"./excelworkbooktest/{year}.xlsx")
         input("Updated! Press Enter to close...")
 
 if __name__ == "__main__":
