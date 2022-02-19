@@ -23,7 +23,7 @@ Variable Value: <your_account_id> (E.g. 123456789)
 
 2.
 Authenticating:
-On the first execution of the application and after every 90 days, you'll be asked to authenticate. A link will be provided to do so in the console.
-Once you navigate to the link, you'll be asked to sign in to TD Ameritrade.
+On the first execution of the application, you'll be asked to authenticate. A link will be provided to do so in the console.
+Once you navigate to the link, you'll be asked to sign in to TD Ameritrade. 
 After signing in, you be directed to a dead page. Copy the entire link of that page and paste it in the application prompt.
-You should now be authenticated.
+You should now be authenticated, td_state.json will be generated containing your access key
