@@ -177,6 +177,9 @@ def update_contributed_data() -> None:
 
 
 def update_portfolio() -> None:
+    """
+    Update the "Portfolio" worksheet table with all the symbols that are owned
+    """
     # Iterate through the columns and rows to look for the cell that has "Symbol" as the value
     for column in range(1, 50):
         for row in range(1, 50):
@@ -290,11 +293,7 @@ def main():
         update_account_value()
         update_stock_data()
         update_contributed_data()
-        
-        print("Do you want to update the symbols you own? (y/n), otherwise, press (Enter)...")
-        update_portfolio_symbols = input().lower()
-        if update_portfolio_symbols == "y":
-            update_portfolio()
+        update_portfolio()
         
         #EXCEL_WORK_BOOK.save(f"./excelworkbooktest/{year}.xlsx")
         input("Updated! Press Enter to close...")
