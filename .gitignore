@@ -1,5 +1,6 @@
 .vscode
 __pycache__
+geckodriver.log
 secretunstageddata.py
 td_state.json
 portfolio.xlsx
