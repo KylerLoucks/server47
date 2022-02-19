@@ -1,5 +1,8 @@
 # server47
-Updates "TD Ameritrade Stonks.xlsx" excel spreadsheet with position data pulled from an API call to TD Ameritrade for a visual portfolio of your account
+
+Takes data from a specified TD Ameritrade account and places it in an Excel spreadsheet for easier porfolio access and data analysis by using Python and the TDAmeritrade API.
+
+Uses a base spreadsheet 'base.xlsx', inputs data from a specified TDAmeritrade account, and saves it as a spreadsheet called 'portfolio.xlsx' 
 
 1.
 Navigate to Windows Start Menu > Search for environment variables
