@@ -35,7 +35,7 @@ ACCOUNT_VALUE = ACCOUNT_DATA_DICT['securitiesAccount']['initialBalances']['accou
 
 def get_owned_position_symbols() -> list:
     '''
-    Get a list of all the SYMBOLs of the positions that are held
+    Get a list of all the symbols of the positions that are owned
     '''
     owned_positions = []
     for i in range(0, len(POSITION_DATA_DICT["securitiesAccount"]["positions"])):
@@ -65,10 +65,11 @@ ws_position_data = EXCEL_WORK_BOOK['Position Data']   # Position Data worksheet 
 ws_dividends = EXCEL_WORK_BOOK['Dividends']
 
 
-'''
-Update the 'Position Data' excel worksheet with all owned symbol data (bid price, last price, etc...)
-'''
+
 def update_stock_data() -> None:
+    '''
+    Update the "Position Data" worksheet with current data of owned symbols (bid price, last price, etc...)
+    '''
     try:
         quotes = TD_CLIENT.get_quotes(get_owned_position_symbols())
         values = list(quotes.values()) # list of all dictionary key values (bidPrice, etc.)
@@ -98,12 +99,14 @@ def update_stock_data() -> None:
         input("There was an error updating the transactions. Make sure the spreadsheet isn't already opened. Press Enter to continue...")
 
 
-'''
-Update the 'Dividends' excel worksheet with all dividend transactions
-'''
+
 def update_dividend_data() -> None:
+    '''
+    Update the "Dividends" worksheet with quarterly dividend payouts
+    '''
     try:
         print(f"Updated the {ws_dividends} with the following transaction data: ")
+        # Append the dictionary to a list and reverse it so the transactions show in oldest to newest order
         dividend_list = list(DIVIDENDS_DICT) 
         dividend_list.reverse()
         
@@ -112,8 +115,6 @@ def update_dividend_data() -> None:
             symbol = str(dividend_list[i]['transactionItem']['instrument']['symbol'])
             date = convert_annoying_date_format(str((dividend_list[i]['transactionDate']))) # convert the annoying tedious ameritradious date format to a readable format.
             amount_recieved = float(dividend_list[i]['netAmount'])
-            
-
             
             rows = list(ws_dividends['A']) # list of rows in the 'A' column
             for index in range(2, len(rows)+2): # start iterating at the row below the column header
@@ -136,14 +137,15 @@ def update_dividend_data() -> None:
         traceback.print_exc() # stacktrace
         input("There was an error updating the transactions. Make sure the spreadsheet isn't already opened. Press Enter to continue...")
 
-'''
-Update the 'Contributed' excel worksheet with all principal transactions
-'''
+
 def update_contributed_data() -> None:
+    '''
+    Update the "Contributed" worksheet with all principal transactions
+    '''
     try:
         print(f"Updated the {ws_contributed} with the following transaction data: ")
         
-        # Append the dictionary to a list and reverse it so the transactions show in ascending order
+        # Append the dictionary to a list and reverse it so the transactions show in oldest to newest order
         principal_list = list(PRINCIPAL) 
         principal_list.reverse()
 
@@ -171,7 +173,7 @@ def update_contributed_data() -> None:
         EXCEL_WORK_BOOK.save(SAVE_PATH)
     except:
         traceback.print_exc() # stacktrace
-        input("There was an error updating the transactions. Make sure the spreadsheet isn't already opened. Press Enter to continue...")
+        input("There was an error updating the contributions. Make sure the spreadsheet isn't already opened. Press Enter to continue...")
 
 
 def update_portfolio() -> None:
@@ -189,7 +191,7 @@ def update_portfolio() -> None:
 
 def update_account_value() -> None:
     """
-    Update total Account Value
+    Update total Account Value in the "Portfolio" worksheet
     """
     try:
 
@@ -219,7 +221,7 @@ def convert_annoying_date_format(date: str) -> str:
 
 def update_transactions():
     '''
-    Update the 'Transactions' sheet with data from every transaction in the 'transactions' dictionary
+    Update the 'Transactions' worksheet with data from every transaction in the 'transactions' dictionary
     '''
     try:
         print(f"Updated the {ws_transactions} with the following transaction data: ")
