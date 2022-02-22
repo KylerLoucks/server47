@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import time
 from datetime import datetime
 import traceback # stack trace
@@ -111,31 +113,34 @@ def update_dividend_data() -> None:
         dividend_list.reverse()
         
         for i in range(0, len(dividend_list)):
-            transaction_id = int(dividend_list[i]['transactionId']) # grab the ID from the list
-            symbol = str(dividend_list[i]['transactionItem']['instrument']['symbol'])
-            date = convert_annoying_date_format(str((dividend_list[i]['transactionDate']))) # convert the annoying tedious ameritradious date format to a readable format.
-            amount_recieved = float(dividend_list[i]['netAmount'])
-            
-            rows = list(ws_dividends['A']) # list of rows in the 'A' column
-            for index in range(2, len(rows)+2): # start iterating at the row below the column header
-                # if the entry is already found, don't overwrite the cell and break the loop
-                if (ws_dividends.cell(row=index, column=1).value == transaction_id):
+            if dividend_list[i]['type'] == 'DIVIDEND_OR_INTEREST':
+                transaction_id = int(dividend_list[i]['transactionId']) # grab the ID from the list
+                symbol = str(dividend_list[i]['transactionItem']['instrument']['symbol'])
+                date = convert_annoying_date_format(str((dividend_list[i]['transactionDate']))) # convert the annoying tedious ameritradious date format to a readable format.
+                amount_recieved = float(dividend_list[i]['netAmount'])
+                
+                rows = list(ws_dividends['A']) # list of rows in the 'A' column
+                for index in range(2, len(rows)+2): # start iterating at the row below the column header
+                    # if the entry is already found, don't overwrite the cell and break the loop
+                    if (ws_dividends.cell(row=index, column=1).value == transaction_id):
+                        break
+                    # if the row already has data populated
+                    if (ws_dividends.cell(row=index, column=1).value != None):
+                        continue # iterate the loop
+                    ws_dividends.cell(row=index, column=1, value=transaction_id)         # update ID cells
+                    ws_dividends.cell(row=index, column=2, value=symbol)     # update symbol cells
+                    ws_dividends.cell(row=index, column=3, value=date)       # update date cells
+                    ws_dividends.cell(row=index, column=4, value=amount_recieved).number_format = '$#,##0.00' # amount recieved for the dividend
+                    print(f"ID: {transaction_id} SYMBOL: {symbol} DATE: {date} DIV AMOUNT: ${amount_recieved}")
                     break
-                # if the row already has data populated
-                if (ws_dividends.cell(row=index, column=1).value != None):
-                    continue # iterate the loop
-                ws_dividends.cell(row=index, column=1, value=transaction_id)         # update ID cells
-                ws_dividends.cell(row=index, column=2, value=symbol)     # update symbol cells
-                ws_dividends.cell(row=index, column=3, value=date)       # update date cells
-                ws_dividends.cell(row=index, column=4, value=amount_recieved).number_format = '$#,##0.00' # amount recieved for the dividend
-                print(f"ID: {transaction_id} SYMBOL: {symbol} DATE: {date} DIV AMOUNT: ${amount_recieved}")
-                break
+            else: # if the transaction isn't a DIVIDEND, iterate the loop (skip it)
+                continue 
 
         # save the excel file
         EXCEL_WORK_BOOK.save(SAVE_PATH)
     except:
         traceback.print_exc() # stacktrace
-        input("There was an error updating the transactions. Make sure the spreadsheet isn't already opened. Press Enter to continue...")
+        input("There was an error updating the dividends. Make sure the spreadsheet isn't already opened. Press Enter to continue...")
 
 
 def update_contributed_data() -> None:
