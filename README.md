@@ -4,7 +4,7 @@ Takes data from a specified TD Ameritrade account and places it in an Excel spre
 
 Uses a base spreadsheet 'base.xlsx', inputs data from a specified TDAmeritrade account, and saves it as a spreadsheet called 'portfolio.xlsx' 
 
-1.
+### Step 1 - Create environment variable containing your TD account ID
 Navigate to Windows Start Menu > Search for environment variables
 ![image](https://user-images.githubusercontent.com/60449948/153258085-347e2969-28af-49b5-be83-74e671656277.png)
 
@@ -20,13 +20,12 @@ Create a new User Variable
 
 
 Variable Name: TD_ACCOUNT 
-Variable Value: <your_account_id> (E.g. 123456789)
+Variable Value: <your_9-digit-account_id> (E.g. 123456789)
 ![image](https://user-images.githubusercontent.com/60449948/153259075-15873f65-b243-4c63-bb1d-866456fb5eb2.png)
 
 
-2.
-Authenticating:
+### Step 2 - Start server47.py and authenticate by logging into your account
 On the first execution of the application, you'll be asked to authenticate. A link will be provided to do so in the console.
-Once you navigate to the link, you'll be asked to sign in to TD Ameritrade. 
+Once you navigate to the link, you'll be asked to sign-in to TD Ameritrade. 
 After signing in, you be directed to a dead page. Copy the entire link of that page and paste it in the application prompt.
 You should now be authenticated, td_state.json will be generated containing your access key
