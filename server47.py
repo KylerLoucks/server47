@@ -160,6 +160,9 @@ def update_contributed_data() -> None:
             date = convert_annoying_date_format(str((principal_list[i]['transactionDate']))) # convert the annoying tedious ameritradious date format to a readable format.
             amount_contributed = float(principal_list[i]['netAmount'])
             
+            if amount_contributed < 0:
+                continue
+
             rows = list(ws_contributed['A']) # list of rows in the 'A' column that have data
             for index in range(2, len(rows)+2):
                 # if the entry is already found, don't overwrite the cell
